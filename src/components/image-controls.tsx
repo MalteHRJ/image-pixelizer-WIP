@@ -11,8 +11,6 @@ import { useEffect, useState } from "react";
 
 //TODO clean up code
 //TODO add comments
-//TODO make image preview show up when you first hit run
-//TODO make preview update when you change options
 type InputOptions = {
   preserveResolution: boolean;
   outputWidth: number;
@@ -20,29 +18,19 @@ type InputOptions = {
   imgFormat: string;
 };
 export default function ImageControls() {
-  const [imageInput, setImageInput] = useState(null);
-  const [imageOutput, setImageOutput] = useState(null);
+  const [imageOutput, setImageOutput] = useState<string>(null);
 
-  const handleImageOutput = async (
-    imageData: Uint8Array,
-    imageType: string
-  ) => {
-    const img = new Image();
-    const fileType = "image/" + imageType;
-    img.src = URL.createObjectURL(
-      new Blob([imageData.buffer], { type: fileType })
-    );
-    return img;
-  };
   /* sends the image to our wasm module and sends back the result */
   const processImage = async (image: File, options: InputOptions) => {
-    /*     const pixelArray = rgbaFromImage(image); */
     const buffer = await image.arrayBuffer();
     const data = new Uint8Array(buffer);
     const res = await (window as any).pixelize(data, options);
-    console.log("res", res);
-    const outPut = await handleImageOutput(res, options.imgFormat);
-    setImageOutput(outPut);
+    const filetype = "image/" + options.imgFormat;
+    console.log(res);
+
+    const blob = new Blob([res], { type: filetype });
+    const imageUrl = URL.createObjectURL(blob);
+    setImageOutput(imageUrl);
   };
 
   /* loading and instantiating the wasm module */
@@ -74,34 +62,29 @@ export default function ImageControls() {
     }
     loadWasm();
   }, []);
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const formData = new FormData(e.target as HTMLFormElement);
+  const handleChange = async (e) => {
+    console.log(this, e.currentTarget);
+    const form = e.currentTarget as HTMLFormElement;
+    const formData = new FormData(form);
 
     const file = formData.get("imageFile") as File;
-
+    const outputWidth = parseInt(formData.get("width") as string);
     const Options = {
       preserveResolution: formData.get("keepResolution") === "on",
-      outputWidth: parseInt(formData.get("width") as string),
+      outputWidth: outputWidth > 0 ? outputWidth : 1,
       method: formData.get("method") as string,
       imgFormat: file.type.split("/")[1],
     };
-
-    console.log(file, Options);
-    /* showing the input image in preview */
-    const img = new Image();
-    img.src = URL.createObjectURL(file);
-    img.onload = () => {
-      setImageInput(img);
-      if (Options && !Object.values(Options).includes(undefined)) {
-        processImage(file, Options);
-      }
-    };
+    if (Options) {
+      processImage(file, Options);
+    } else {
+      console.error("something went wrong");
+    }
   };
   return (
     <>
       <section className="grid gap-4 px-4 place-items-center">
-        <form action="" onSubmit={handleSubmit} className="grid gap-4 p-4">
+        <form action="" onChange={handleChange} className="grid gap-4 p-4">
           <div className="flex gap-4">
             <div className="grid gap-4">
               <ImageControlsUpload />
@@ -109,12 +92,13 @@ export default function ImageControls() {
             </div>
             <ImageControlsSize />
           </div>
-          <ImageControlsDownload />
-          <ImageControlsRun />
+          {imageOutput ? (
+            <ImageControlsDownload outputImage={imageOutput} />
+          ) : null}
         </form>
       </section>
       <Separator />
-      {imageInput ? <ImagePreview inputImage={imageInput} outputImage={imageOutput} /> : null}
+      {imageOutput ? <ImagePreview outputImage={imageOutput} /> : null}
     </>
   );
 }
@@ -136,12 +120,25 @@ export function ImageControlsUpload() {
     </div>
   );
 }
-export function ImageControlsDownload() {
-  return <Button variant="secondary">download result</Button>;
+export function ImageControlsDownload({
+  outputImage,
+}: {
+  outputImage: string;
+}) {
+  function handleDownload(e) {
+    e.preventDefault();
+    const link = document.createElement("a");
+    link.href = outputImage;
+    link.download = "pixelized";
+    link.click();
+  }
+  return (
+    <Button variant="secondary" onClick={handleDownload}>
+      download result
+    </Button>
+  );
 }
-export function ImageControlsRun() {
-  return <Button variant="default">Run</Button>;
-}
+
 export function ImageControlsSize() {
   return (
     <div className="grid gap-2 p-4 rounded-sm border-border border">
@@ -161,19 +158,7 @@ export function ImageControlsSize() {
             pattern="[0-9]{1,5}"
           />
         </div>
-        <div className="grid gap-2">
-          <Label htmlFor="height">height in pixels</Label>
-          <Input
-            title="❗future feature❗"
-            disabled
-            name="height"
-            type="number"
-            inputMode="numeric"
-            placeholder="height in pixels"
-            id="height"
-            pattern="[0-9]{1,5}"
-          />
-        </div>
+
         <div className="flex items-center gap-2">
           <Checkbox id="keep-resolution" name="keepResolution" />
           <Label htmlFor="keep-resolution" className="cursor-pointer">

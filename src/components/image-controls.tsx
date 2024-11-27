@@ -62,12 +62,12 @@ export default function ImageControls() {
     }
     loadWasm();
   }, []);
+
   const handleChange = async (e) => {
-    console.log(this, e.currentTarget);
     const form = e.currentTarget as HTMLFormElement;
     const formData = new FormData(form);
-
     const file = formData.get("imageFile") as File;
+    if (file.size == 0) return;
     const outputWidth = parseInt(formData.get("width") as string);
     const Options = {
       preserveResolution: formData.get("keepResolution") === "on",
@@ -75,10 +75,8 @@ export default function ImageControls() {
       method: formData.get("method") as string,
       imgFormat: file.type.split("/")[1],
     };
-    if (Options) {
-      processImage(file, Options);
-    } else {
-      console.error("something went wrong");
+    if (Options && !Object.values(Options).includes(null)) {
+      await processImage(file, Options);
     }
   };
   return (
@@ -116,6 +114,7 @@ export function ImageControlsUpload() {
         id="file-upload"
         placeholder="choose file"
         className="text-xs cursor-pointer h-full"
+        title="supported types: png,jpg,gif"
       ></Input>
     </div>
   );
@@ -155,6 +154,8 @@ export function ImageControlsSize() {
             inputMode="numeric"
             placeholder="width in pixels"
             id="width"
+            min={1}
+            max={512}
             pattern="[0-9]{1,5}"
           />
         </div>
@@ -187,12 +188,12 @@ export function ImageControlsMethod() {
             nearest
           </Label>
         </div>
-        <div className="flex items-center gap-2">
+        {/*   <div className="flex items-center gap-2">
           <RadioGroupItem value="frequency" id="frequency" />
           <Label htmlFor="frequency" className="cursor-pointer">
             frequency
           </Label>
-        </div>
+        </div> */}
       </RadioGroup>
     </div>
   );

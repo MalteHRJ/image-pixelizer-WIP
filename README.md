@@ -7,3 +7,4 @@ Written in GoLang/wasm and NextJS
 ## Issues
 * some .jpg have issues with the _nearest_ method. Propably due to color models and alpha premultiplying shenanigans.
 * .gif images can be slow due to the built in color palette constrainer
+* images get quite dark when using the _average_ method at high target resolutions
